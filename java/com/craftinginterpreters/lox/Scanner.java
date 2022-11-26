@@ -14,6 +14,8 @@ class Scanner {
     private int start = 0;
     private int current = 0;
     private int line = 1;
+    private int numOfNestedComment = 0;
+
     private static final Map<String, TokenType> keywords;
 
     static {
@@ -68,7 +70,9 @@ class Scanner {
             case '-': addToken(MINUS); break;
             case '+': addToken(PLUS); break;
             case ';': addToken(SEMICOLON); break;
-            case '*': addToken(STAR); break;
+            case '*':
+                addToken(STAR);
+                break;
             case '!':
                 addToken(match('=') ? BANG_EQUAL : BANG);
                 break;
@@ -85,9 +89,13 @@ class Scanner {
                 if (match('/')) {
                     // A comment goes until the end of the line.
                     while (peek() != '\n' && !isAtEnd()) advance();
+                } else if (match('*')) {
+                    numOfNestedComment++;
+                    multiLineComments();
                 } else {
                     addToken(SLASH);
                 }
+
                 break;
 
             case ' ':
@@ -111,6 +119,29 @@ class Scanner {
                     reporter.error(line, "Unexpected character.");
                 }
                 break;
+        }
+    }
+
+    private void multiLineComments(){
+        char c;
+
+        while (numOfNestedComment > 0 && !isAtEnd()) {
+            c = advance();
+
+            if (c == '*' && match('/') && numOfNestedComment > 0) {
+                numOfNestedComment--;
+            } else if (c == '/' && match('*')) {
+                numOfNestedComment++;
+            }
+
+            if (c == '\n') {
+                line++;
+            }
+        }
+
+        if (numOfNestedComment > 0) {
+            reporter.error(numOfNestedComment, "Comment Not Terminated");
+            return;
         }
     }
 
