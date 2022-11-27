@@ -174,26 +174,74 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             case EQUAL_EQUAL:
                 return isEqual(left, right);
             case GREATER:
-                checkNumberOperands(expr.operator, left, right);
-                return (double) left > (double) right;
+                checkNumberOrStringOperands(expr.operator, left, right);
+                if (left instanceof Double && right instanceof Double) {
+                    return (double) left > (double) right;
+                }
+
+                if (stringLexigraphicalCompare(left, right) > 0) {
+                    return true;
+                } else {
+                    return false;
+                }
             case GREATER_EQUAL:
-                checkNumberOperands(expr.operator, left, right);
-                return (double) left >= (double) right;
+                checkNumberOrStringOperands(expr.operator, left, right);
+                if (left instanceof Double && right instanceof Double) {
+                    return (double) left >= (double) right;
+                }
+
+                if (stringLexigraphicalCompare(left, right) >= 0) {
+                    return true;
+                } else {
+                    return false;
+                }
             case LESS:
-                checkNumberOperands(expr.operator, left, right);
-                return (double) left < (double) right;
+                checkNumberOrStringOperands(expr.operator, left, right);
+                if (left instanceof Double && right instanceof Double) {
+                    return (double) left < (double) right;
+                }
+
+                if (stringLexigraphicalCompare(left, right) < 0) {
+                    return true;
+                } else {
+                    return false;
+                }
             case LESS_EQUAL:
-                checkNumberOperands(expr.operator, left, right);
-                return (double) left <= (double) right;
+                checkNumberOrStringOperands(expr.operator, left, right);
+                if (left instanceof Double && right instanceof Double) {
+                    return (double) left <= (double) right;
+                }
+
+                if (stringLexigraphicalCompare(left, right) <= 0) {
+                    return true;
+                } else {
+                    return false;
+                }
             case MINUS:
                 checkNumberOperands(expr.operator, left, right);
                 return (double) left - (double) right;
             case PLUS:
                 if (left instanceof Double && right instanceof Double) {
                     return (double) left + (double) right;
-                } // [plus]
+                }
 
                 if (left instanceof String && right instanceof String) {
+                    return (String) left + (String) right;
+                }
+
+                if (left instanceof Double && right instanceof String) {
+                    if (((Double) left % 1) == 0) {
+                        left = ((Double) left).intValue();
+                    }
+                    left = left.toString();
+                    return (String) left + (String) right;
+                }
+
+                if (left instanceof String && right instanceof Double) {
+                    if (((Double) right % 1) == 0) {
+                        right = ((Double) right).intValue();
+                    }
+                    right = right.toString();
                     return (String) left + (String) right;
                 }
 
@@ -304,6 +352,24 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return lookUpVariable(expr.name, expr);
     }
 
+    private Integer stringLexigraphicalCompare(Object a, Object b) {
+        if (a instanceof Double) {
+            // no decimal digits. handling cases like 123 <= "123"
+            if (((Double) a % 1) == 0) {
+                a = ((Double) a).intValue();
+            }
+            a = a.toString();
+        } else if (b instanceof Double) {
+            if (((Double) b % 1) == 0) {
+                b = ((Double) b).intValue();
+            }
+            b = b.toString();
+        }
+
+        Integer result = ((String) a).compareToIgnoreCase((String) b);
+        return result;
+    }
+
     private Object lookUpVariable(Token name, Expr expr) {
         Integer distance = locals.get(expr);
         if (distance != null) {
@@ -326,6 +392,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         throw new RuntimeError(operator, "Operands must be numbers.");
     }
 
+    private void checkNumberOrStringOperands(Token operator, Object left, Object right) {
+        if ((left instanceof Double || left instanceof String) && (right instanceof Double || right instanceof String))
+            return;
+        // [operand]
+        throw new RuntimeError(operator, "Operands must be numbers.");
+    }
+
     private boolean isTruthy(Object object) {
         if (object == null)
             return false;
@@ -339,6 +412,21 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             return true;
         if (a == null)
             return false;
+
+        if (a instanceof Double && b instanceof String) {
+            // no decimal digits. handling cases like 123 <= "123"
+            if (((Double) a % 1) == 0) {
+                a = ((Double) a).intValue();
+            }
+            a = a.toString();
+        }
+
+        if (a instanceof String && b instanceof Double) {
+            if (((Double) b % 1) == 0) {
+                b = ((Double) b).intValue();
+            }
+            b = b.toString();
+        }
 
         return a.equals(b);
     }
