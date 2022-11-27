@@ -250,8 +250,25 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 checkNumberOperands(expr.operator, left, right);
                 return (double) left / (double) right;
             case STAR:
-                checkNumberOperands(expr.operator, left, right);
-                return (double) left * (double) right;
+                if (left instanceof Double && right instanceof Double) {
+                    return (double) left * (double) right;
+                }
+
+                if (left instanceof Double && right instanceof String) {
+                    if (((Double) left % 1) == 0) {
+                        left = ((Double) left).intValue();
+                        return ((String) right).repeat((Integer) left);
+                    }
+                }
+
+                if (left instanceof String && right instanceof Double) {
+                    if (((Double) right % 1) == 0) {
+                        right = ((Double) right).intValue();
+                        return ((String) left).repeat((Integer) right);
+                    }
+                }
+
+                throw new RuntimeError(expr.operator, "Operands must be two numbers or one string one Integer");
 
             default:
                 // Unreachable.
@@ -396,6 +413,16 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         if ((left instanceof Double || left instanceof String) && (right instanceof Double || right instanceof String))
             return;
         // [operand]
+        throw new RuntimeError(operator, "Operands must be numbers.");
+    }
+
+    private void checkPossibleOneStringOperand(Token operator, Object left, Object right) {
+        if (left instanceof Double && right instanceof Double)
+            return;
+
+        if ((left instanceof Double && right instanceof String) || (left instanceof Double && right instanceof String))
+            return;
+
         throw new RuntimeError(operator, "Operands must be numbers.");
     }
 
