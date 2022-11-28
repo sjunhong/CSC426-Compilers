@@ -243,6 +243,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     }
                     right = right.toString();
                     return (String) left + (String) right;
+
                 }
 
                 throw new RuntimeError(expr.operator, "Operands must be two numbers or two strings.");
@@ -269,7 +270,17 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 }
 
                 throw new RuntimeError(expr.operator, "Operands must be two numbers or one string one Integer");
+            case MODULO:
+                checkNumberOperands(expr.operator, left, right);
 
+                // must be both Integers
+                if ((((Double) left % 1) == 0) && (((Double) right % 1) == 0)) {
+                    left = ((Double) left).intValue();
+                    right = ((Double) right).intValue();
+                    return ((Integer) left) % ((Integer) right);
+                } else {
+                    throw new RuntimeError(expr.operator, "Operands must be two Integers");
+                }
             default:
                 // Unreachable.
                 return null;
