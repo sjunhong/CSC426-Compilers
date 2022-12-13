@@ -3,13 +3,14 @@ package com.craftinginterpreters.lox;
 import java.util.List;
 import java.util.Map;
 
-class LoxClass implements LoxCallable {
+class LoxClass extends LoxInstance implements LoxCallable {
     final String name;
     final LoxClass superclass;
     private final Map<String, LoxFunction> methods;
 
-    LoxClass(String name, LoxClass superclass,
+    LoxClass(String name, LoxClass metaclass, LoxClass superclass,
              Map<String, LoxFunction> methods) {
+        super(metaclass);
         this.superclass = superclass;
         this.name = name;
         this.methods = methods;

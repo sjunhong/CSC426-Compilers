@@ -17,6 +17,7 @@ public class Parser {
     private final List<Token> tokens;
     private final Reporter reporter;
     private int current = 0;
+    private boolean inClass = false;
 
     Parser(List<Token> tokens, Reporter reporter) {
         this.tokens = tokens;
@@ -61,11 +62,13 @@ public class Parser {
 
         consume(LEFT_BRACE, "Expect '{' before class body.");
         List<Stmt.Function> methods = new ArrayList<>();
+        List<Stmt.Function> classMethods = new ArrayList<>();
         while (!check(RIGHT_BRACE) && !isAtEnd()) {
-            methods.add(function("method"));
+            boolean isClassMethod = match(CLASS);
+            (isClassMethod ? classMethods : methods).add(function("method"));
         }
         consume(RIGHT_BRACE, "Expect '}' after class body.");
-        return new Stmt.Class(name, superclass, methods);
+        return new Stmt.Class(name, superclass, methods, classMethods);
     }
 
     private Stmt statement() {
