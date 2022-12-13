@@ -194,8 +194,10 @@ public class Parser {
         Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
         List<Token> parameters = new ArrayList<>();
 
-        if (!kind.equals("method") || check(LEFT_PAREN)) {
+        // If function is a method with no parentheses, it is getter method
+        if (check(LEFT_PAREN) || !kind.equals("method")) {
             consume(LEFT_PAREN, "Expect '(' after " + kind + " name.");
+
             if (!check(RIGHT_PAREN)) {
                 do {
                     if (parameters.size() >= 255) {
