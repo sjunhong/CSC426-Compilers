@@ -20,6 +20,10 @@ class LoxFunction implements LoxCallable {
         return new LoxFunction(declaration, environment, isInitializer);
     }
 
+    boolean isGetter() {
+        return declaration.params.size() == 0;
+    }
+
     @Override
     public int arity() {
         return declaration.params.size();
