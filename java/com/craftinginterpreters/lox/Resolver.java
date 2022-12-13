@@ -3,11 +3,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
+import java.util.stream.Collectors;
 
 class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private final Interpreter interpreter;
     private final Reporter reporter;
-    private final Stack<Map<String, Boolean>> scopes = new Stack<>();
+    private final Stack<Map<String, VariableState>> scopes = new Stack<>();
     private FunctionType currentFunction = FunctionType.NONE;
 
     private enum FunctionType {
@@ -21,6 +22,12 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         NONE,
         CLASS,
         SUBCLASS
+    }
+
+    private enum VariableState {
+        DECLARED,
+        DEFINED,
+        READ
     }
 
     private ClassType currentClass = ClassType.NONE;
@@ -63,13 +70,14 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             resolve(stmt.superclass);
         }
 
+        // not calling super and this is fine
         if (stmt.superclass != null) {
             beginScope();
-            scopes.peek().put("super", true);
+            scopes.peek().put("super",  VariableState.READ);
         }
 
         beginScope();
-        scopes.peek().put("this", true);
+        scopes.peek().put("this", VariableState.READ);
 
         for (Stmt.Function method : stmt.methods) {
             FunctionType declaration = FunctionType.METHOD;
@@ -147,8 +155,8 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         declare(stmt.name);
         if (stmt.initializer != null) {
             resolve(stmt.initializer);
+            define(stmt.name);
         }
-        define(stmt.name);
         return null;
     }
 
@@ -249,7 +257,8 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitVariableExpr(Expr.Variable expr) {
-        if (!scopes.isEmpty() && scopes.peek().get(expr.name.lexeme) == Boolean.FALSE) {
+        if (!scopes.isEmpty() && scopes.peek().containsKey(expr.name.lexeme)
+                && scopes.peek().get(expr.name.lexeme) == VariableState.DECLARED) {
             reporter.error(expr.name, "Can't read local variable in its own initializer.");
         }
 
@@ -271,35 +280,47 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     private void beginScope() {
-        scopes.push(new HashMap<String, Boolean>());
+        scopes.push(new HashMap<String, VariableState>());
     }
 
     private void endScope() {
-        scopes.pop();
+        Map<String, VariableState> scope = scopes.pop();
+        Map<String, VariableState> unread = scope.entrySet()
+                .stream()
+                .filter(entry -> entry.getValue() != VariableState.READ)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        unread.entrySet().stream()
+                .filter(var -> var.getValue() == VariableState.DECLARED)
+                .forEach(var -> reporter.warning(var.getKey(), "Local variable never defined."));
+        unread.entrySet().stream()
+                .filter(var -> var.getValue() == VariableState.DEFINED)
+                .forEach(var ->reporter.warning(var.getKey(), "Local variable never used."));
     }
 
     private void declare(Token name) {
         if (scopes.isEmpty())
             return;
 
-        Map<String, Boolean> scope = scopes.peek();
+        Map<String, VariableState> scope = scopes.peek();
         if (scope.containsKey(name.lexeme)) {
             reporter.error(name, "Already a variable with this name in this scope.");
         }
 
-        scope.put(name.lexeme, false);
+        scope.put(name.lexeme, VariableState.DECLARED);
     }
 
     private void define(Token name) {
         if (scopes.isEmpty()) return;
-        scopes.peek().put(name.lexeme, true);
+        scopes.peek().put(name.lexeme, VariableState.DEFINED);
     }
 
     private void resolveLocal(Expr expr, Token name) {
         for (int i = scopes.size() - 1; i >= 0; i--) {
             if (scopes.get(i).containsKey(name.lexeme)) {
                 interpreter.resolve(expr, scopes.size() - 1 - i);
+                scopes.get(i).put(name.lexeme, VariableState.READ);
                 return;
-            } }
+            }
+        }
     }
 }

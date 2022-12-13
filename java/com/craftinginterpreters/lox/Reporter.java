@@ -26,6 +26,11 @@ public class Reporter {
         hadError = true;
     }
 
+    public void warning(String message1, String message2) {
+        System.err.println(message1 + ": " + message2);
+        hadError = true;
+    }
+
     public void reset() {
         hadError = false;
         hadRuntimeError = false;
